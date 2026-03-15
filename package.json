@@ -7,7 +7,8 @@
     "build": "tsc -b && vite build && node scripts/fix-cesium-dist.mjs",
     "dev": "vite",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "review:ui": "bash scripts/run-playwright-review.sh"
   },
   "dependencies": {
     "cesium": "^1.139.1",

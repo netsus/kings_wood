@@ -12,6 +12,14 @@ pnpm dev
 
 `VITE_GOOGLE_MAPS_API_KEY`를 넣으면 Google Photorealistic 3D Tiles 로딩이 더 안정적입니다.
 
+## Review Loop
+
+```bash
+pnpm review:ui
+```
+
+이 명령은 빌드 후 preview 서버를 띄우고, Playwright로 모바일/데스크톱 스크린샷과 콘솔/네트워크 이슈를 `.artifacts/playwright-review/`에 저장합니다.
+
 ## Build
 
 ```bash

@@ -68,6 +68,7 @@
 ## Testing And Validation
 
 - Run the app locally and verify in a real browser before calling work complete.
+- After meaningful UI changes, run `pnpm review:ui` to generate fresh Playwright review artifacts.
 - Use browser-based validation for:
   - mobile viewport layout
   - touch-friendly interactions
@@ -87,3 +88,4 @@
 - Make progress directly when the next step is clear.
 - When a decision changes deployment, data model, or user trust, pause and surface the tradeoff.
 - Prefer small, working increments over large speculative rewrites.
+- If the installed skill `$playwright-visual-review-loop` is available, use it for an independent browser-first review pass after frontend changes.
