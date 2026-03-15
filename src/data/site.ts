@@ -1,21 +1,77 @@
+export type OverlayCalibration = {
+  centerLat: number
+  centerLon: number
+  heightMeters: number
+  opacity: number
+  rotationDeg: number
+  widthMeters: number
+}
+
+export type CameraPresetName = 'default' | 'east' | 'west' | 'top'
+
 export const kingsWoodSite = {
   userAddress: '충청북도 옥천군 군북면 증약리 1483',
-  addressNote: '가족이 검토 중인 후보지 주소를 기준 정보로 유지했습니다.',
+  addressNote:
+    '가족이 검토 중인 후보지 주소를 기준 정보로 유지했고, 현재 장면은 현장 도로 축을 따라 시각 정합을 진행합니다.',
   anchorAddress: '충청북도 옥천군 군북면 증약리 405-6 일원',
   coordinatesLabel: '3D 정렬 anchor: 36.3620046, 127.5292708',
   center: {
     lat: 36.3620046,
     lon: 127.5292708,
   },
-  camera: {
-    heading: 24,
-    pitch: -48,
-    height: 900,
-  },
-  overlay: {
-    heightMeters: 316,
-    widthMeters: 470,
-  },
+  overlayCalibration: {
+    centerLat: 36.361897,
+    centerLon: 127.529327,
+    heightMeters: 309,
+    opacity: 0.78,
+    rotationDeg: 0,
+    widthMeters: 460,
+  } satisfies OverlayCalibration,
+  cameraPresets: {
+    default: {
+      description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
+      heading: 24,
+      label: '기본',
+      pitch: -48,
+      range: 980,
+    },
+    east: {
+      description: '동측에서 생활시설 블록 방향으로 보는 각도',
+      heading: 108,
+      label: '동측',
+      pitch: -34,
+      range: 900,
+    },
+    west: {
+      description: '서측에서 공원 블록과 상단 도로를 보는 각도',
+      heading: 298,
+      label: '서측',
+      pitch: -34,
+      range: 980,
+    },
+    top: {
+      description: '배치평면과 도로 축 정합을 확인하는 탑뷰',
+      heading: 0,
+      label: '탑뷰',
+      pitch: -88,
+      range: 780,
+    },
+  } satisfies Record<
+    CameraPresetName,
+    {
+      description: string
+      heading: number
+      label: string
+      pitch: number
+      range: number
+    }
+  >,
+  calibrationLandmarks: [
+    '메인 진입 도로 축',
+    '상단 곡선 도로와 막다른길 라인',
+    '중앙 공원 면적 블록',
+    '하단 생활시설 구역',
+  ],
   phase2Summary: '174필지 · 55,283㎡',
   phase2SummaryNote: '제공된 평면도 기준의 2차단지 핵심 수치를 앱 첫 화면에 반영했습니다.',
   nextSteps: [
