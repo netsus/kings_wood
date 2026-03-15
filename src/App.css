@@ -1,0 +1,384 @@
+.app-shell {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 20px 16px 72px;
+}
+
+.hero-panel,
+.scene-card,
+.reference-card,
+.insight-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(234, 201, 120, 0.18), transparent 28%),
+    linear-gradient(180deg, rgba(19, 52, 43, 0.95), rgba(10, 26, 22, 0.96));
+  box-shadow: 0 24px 60px rgba(7, 18, 15, 0.22);
+}
+
+.hero-panel {
+  padding: 28px 20px 24px;
+}
+
+.eyebrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(232, 245, 222, 0.12);
+  color: var(--mint);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 7px 12px;
+  text-transform: uppercase;
+}
+
+.eyebrow.subtle {
+  color: rgba(243, 239, 227, 0.68);
+}
+
+.hero-panel h1,
+.section-heading h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.hero-panel h1 {
+  font-size: clamp(2rem, 7.8vw, 4.3rem);
+  line-height: 0.98;
+  max-width: 11ch;
+}
+
+.hero-copy {
+  color: var(--text-soft);
+  font-size: 1.02rem;
+  line-height: 1.7;
+  margin: 18px 0 0;
+  max-width: 64ch;
+}
+
+.hero-copy strong,
+.note-banner em {
+  color: var(--cream);
+  font-style: normal;
+}
+
+.hero-copy code {
+  background: rgba(243, 239, 227, 0.1);
+  border-radius: 10px;
+  font-size: 0.92em;
+  padding: 2px 8px;
+}
+
+.hero-grid,
+.split-section,
+.next-grid,
+.controls-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.hero-grid {
+  margin-top: 22px;
+}
+
+.fact-card,
+.mini-card,
+.control-card {
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(243, 239, 227, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.fact-card {
+  padding: 18px;
+}
+
+.fact-label,
+.section-kicker {
+  color: var(--mint);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.fact-card strong,
+.mini-card strong,
+.control-title {
+  display: block;
+  font-size: 1rem;
+}
+
+.fact-card p,
+.reference-copy,
+.mini-card p,
+.control-card p,
+.note-banner p,
+.setup-footnote {
+  color: rgba(243, 239, 227, 0.72);
+  line-height: 1.65;
+  margin: 8px 0 0;
+}
+
+.content-stack {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.scene-card,
+.reference-card,
+.insight-card {
+  padding: 18px;
+}
+
+.section-heading {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.section-heading.compact {
+  margin-bottom: 14px;
+}
+
+.section-heading h2 {
+  font-size: clamp(1.5rem, 5vw, 2.4rem);
+}
+
+.status-pill {
+  align-self: stretch;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.status-pill strong {
+  font-size: 0.96rem;
+}
+
+.status-pill span {
+  color: rgba(243, 239, 227, 0.72);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.status-pill.loading {
+  background: rgba(229, 183, 74, 0.1);
+}
+
+.status-pill.google3d {
+  background: rgba(105, 188, 137, 0.14);
+}
+
+.status-pill.fallback,
+.status-pill.error {
+  background: rgba(177, 114, 86, 0.14);
+}
+
+.scene-frame {
+  margin-top: 16px;
+}
+
+.viewer-shell {
+  aspect-ratio: 0.82;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 20%),
+    linear-gradient(180deg, #183128, #0e1e19);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  min-height: 420px;
+  overflow: hidden;
+  position: relative;
+}
+
+.viewer-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+.viewer-overlay {
+  inset: auto 12px 12px 12px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.viewer-overlay-card {
+  background: rgba(12, 25, 21, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  max-width: 360px;
+  padding: 12px 14px;
+  backdrop-filter: blur(12px);
+}
+
+.viewer-overlay-card strong {
+  display: block;
+  font-size: 0.94rem;
+}
+
+.viewer-overlay-card p {
+  color: rgba(243, 239, 227, 0.74);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 6px 0 0;
+}
+
+.controls-grid {
+  grid-template-columns: 1fr;
+  margin-top: 16px;
+}
+
+.control-card {
+  padding: 16px;
+}
+
+.control-head,
+.checkbox-card {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.checkbox-card input[type='checkbox'] {
+  accent-color: var(--mint);
+  block-size: 20px;
+  inline-size: 20px;
+}
+
+.control-card input[type='range'] {
+  accent-color: var(--mint);
+  inline-size: 100%;
+  margin-top: 12px;
+}
+
+.note-banner {
+  background: rgba(232, 245, 222, 0.08);
+  border: 1px solid rgba(232, 245, 222, 0.16);
+  border-radius: 22px;
+  margin-top: 14px;
+  padding: 16px 18px;
+}
+
+.note-banner strong {
+  color: var(--cream);
+}
+
+.split-section {
+  grid-template-columns: 1fr;
+}
+
+.reference-card {
+  padding: 18px;
+}
+
+.plan-image {
+  border-radius: 18px;
+  display: block;
+  inline-size: 100%;
+  object-fit: cover;
+}
+
+.next-grid {
+  grid-template-columns: 1fr;
+}
+
+.mini-card {
+  padding: 16px;
+}
+
+.setup-list {
+  color: var(--text-soft);
+  display: grid;
+  gap: 10px;
+  line-height: 1.65;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.setup-footnote {
+  margin-top: 14px;
+}
+
+.cesium-viewer-toolbar,
+.cesium-viewer-animationContainer,
+.cesium-viewer-timelineContainer,
+.cesium-viewer-bottom .cesium-credit-expand-link {
+  display: none !important;
+}
+
+.cesium-viewer-bottom {
+  left: 12px !important;
+  right: auto !important;
+}
+
+.cesium-credit-logoContainer img {
+  max-height: 18px;
+}
+
+.cesium-credit-textContainer,
+.cesium-credit-textContainer a,
+.cesium-credit-logoContainer {
+  color: rgba(243, 239, 227, 0.72) !important;
+  font-size: 10px !important;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    padding: 28px 24px 96px;
+  }
+
+  .hero-panel,
+  .scene-card,
+  .reference-card,
+  .insight-card {
+    padding: 24px;
+  }
+
+  .hero-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  .status-pill {
+    align-self: auto;
+    max-width: 340px;
+  }
+
+  .viewer-shell {
+    aspect-ratio: 1.55;
+    min-height: 540px;
+  }
+
+  .controls-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .split-section,
+  .next-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
