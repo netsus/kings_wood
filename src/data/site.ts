@@ -106,3 +106,34 @@ export const kingsWoodSite = {
     },
   ],
 } as const
+
+export type FengShuiZone = {
+  id: 'north' | 'center' | 'south'
+  name: string
+  color: string
+  southFraction: number
+  northFraction: number
+}
+
+export type FengShuiZoneConfig = {
+  zones: [FengShuiZone, FengShuiZone, FengShuiZone]
+}
+
+export type FengShuiAnalysis = {
+  zoneId: FengShuiZone['id']
+  zoneName: string
+  rating: 1 | 2 | 3 | 4 | 5
+  headline: string
+  highlights: string[]
+  cautions: string[]
+  isReferenceOnly: true
+}
+
+// 개발자가 이 값을 직접 조정 후 pnpm run analyze:fengshui 실행
+export const fengShuiZoneConfig: FengShuiZoneConfig = {
+  zones: [
+    { id: 'south',  name: '남측 구역', color: '#e8a87c', southFraction: 0.0,  northFraction: 0.33 },
+    { id: 'center', name: '중앙 구역', color: '#85c985', southFraction: 0.33, northFraction: 0.67 },
+    { id: 'north',  name: '북측 구역', color: '#7cbde8', southFraction: 0.67, northFraction: 1.0  },
+  ],
+}

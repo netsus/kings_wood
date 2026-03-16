@@ -1,14 +1,17 @@
 import { startTransition, useEffect, useState } from 'react'
 import phase2Plan from '../Phase2_Floor_Plan.png'
 import sitePlan from '../Site_Plan.png'
+import { FengShuiAnalysisCards } from './components/FengShuiAnalysisCards'
 import { KingsWoodScene, type SceneRuntime } from './components/KingsWoodScene'
+import { fengShuiAnalyses } from './data/fengShuiAnalysis'
 import {
+  fengShuiZoneConfig,
   kingsWoodSite,
   type CameraPresetName,
+  type FengShuiZone,
   type OverlayCalibration,
 } from './data/site'
 import {
-  deriveOverlayScale,
   detectCalibrationMode,
   loadOverlayCalibrationDraft,
   metersToLatitudeDegrees,
@@ -55,7 +58,6 @@ function getInitialCalibration(isCalibrationMode: boolean) {
 
 function App() {
   const isCalibrationMode = detectCalibrationMode()
-  const [showOverlay, setShowOverlay] = useState(true)
   const [overlayCalibration, setOverlayCalibration] = useState<OverlayCalibration>(
     () => getInitialCalibration(isCalibrationMode),
   )
@@ -63,6 +65,7 @@ function App() {
   const [sceneBootMaskActive, setSceneBootMaskActive] = useState(isCalibrationMode)
   const [viewPreset, setViewPreset] = useState<CameraPresetName>('default')
   const [viewCommandId, setViewCommandId] = useState(0)
+  const [activeZoneId, setActiveZoneId] = useState<FengShuiZone['id'] | null>(null)
   const [runtime, setRuntime] = useState<SceneRuntime>({
     diagnostics: {
       camera: {
@@ -108,10 +111,6 @@ function App() {
   const activeStatus = statusCopy[runtime.mode]
   const showSceneLoadingMask =
     runtime.mode === 'loading' || (isCalibrationMode && sceneBootMaskActive)
-  const overlayScale = deriveOverlayScale(
-    overlayCalibration,
-    kingsWoodSite.overlayCalibration,
-  )
 
   const reviewPayload = {
     calibration: overlayCalibration,
@@ -119,7 +118,6 @@ function App() {
     isCalibrationMode,
     mode: runtime.mode,
     selectedPreset: viewPreset,
-    showOverlay,
   }
 
   const updateCalibration = (
@@ -139,18 +137,6 @@ function App() {
       centerLon:
         current.centerLon +
         metersToLongitudeDegrees(eastMeters, current.centerLat),
-    }))
-  }
-
-  const handleScaleChange = (scale: number) => {
-    updateCalibration((current) => ({
-      ...current,
-      heightMeters: Number(
-        (kingsWoodSite.overlayCalibration.heightMeters * scale).toFixed(2),
-      ),
-      widthMeters: Number(
-        (kingsWoodSite.overlayCalibration.widthMeters * scale).toFixed(2),
-      ),
     }))
   }
 
@@ -282,65 +268,15 @@ function App() {
 
           <div className="scene-frame">
             <KingsWoodScene
+              activeZoneId={activeZoneId}
               calibration={overlayCalibration}
               calibrationMode={isCalibrationMode}
               onRuntimeChange={setRuntime}
-              showOverlay={showOverlay}
               showLoadingMask={showSceneLoadingMask}
               viewCommandId={viewCommandId}
               viewPreset={viewPreset}
+              zoneConfig={fengShuiZoneConfig}
             />
-          </div>
-
-          <div className="controls-grid">
-            <label className="control-card checkbox-card">
-              <div>
-                <span className="control-title">평면도 오버레이</span>
-                <p>2차단지 경계와 lot 번호를 장면 위에 유지합니다.</p>
-              </div>
-              <input
-                checked={showOverlay}
-                onChange={(event) => setShowOverlay(event.target.checked)}
-                type="checkbox"
-              />
-            </label>
-
-            <label className="control-card">
-              <div className="control-head">
-                <span className="control-title">오버레이 투명도</span>
-                <strong>{Math.round(overlayCalibration.opacity * 100)}%</strong>
-              </div>
-              <input
-                aria-label="오버레이 투명도"
-                max="1"
-                min="0.25"
-                onChange={(event) =>
-                  updateCalibration((current) => ({
-                    ...current,
-                    opacity: Number(event.target.value),
-                  }))
-                }
-                step="0.01"
-                type="range"
-                value={overlayCalibration.opacity}
-              />
-            </label>
-
-            <label className="control-card">
-              <div className="control-head">
-                <span className="control-title">오버레이 스케일</span>
-                <strong>{overlayScale.toFixed(2)}x</strong>
-              </div>
-              <input
-                aria-label="오버레이 스케일"
-                max="1.2"
-                min="0.82"
-                onChange={(event) => handleScaleChange(Number(event.target.value))}
-                step="0.005"
-                type="range"
-                value={overlayScale}
-              />
-            </label>
           </div>
 
           {isCalibrationMode ? (
@@ -349,6 +285,10 @@ function App() {
                 <div>
                   <span className="section-kicker">Calibration</span>
                   <h2>오버레이 미세 보정</h2>
+                  <p className="section-desc">
+                    일반 화면에서는 숨겨 둔 내부 보정 도구입니다. 위치, 회전, 스케일을
+                    여기서만 조정합니다.
+                  </p>
                 </div>
               </div>
 
@@ -459,15 +399,35 @@ function App() {
             </section>
           ) : (
             <div className="note-banner">
-              <strong>정확도 안내</strong>
+              <strong>일반 화면 안내</strong>
               <p>
-                현재 정렬은 공개 좌표와 현장 랜드마크를 기준으로 한
-                <em> 시각 보정용 오버레이 </em>
-                입니다. 더 미세한 보정이 필요하면 URL 뒤에
-                <code>?calibrate=1</code>을 붙여 캘리브레이션 모드로 들어가면 됩니다.
+                지금 보는 오버레이는 이미 맞춰 둔 기준 상태입니다. 더 미세한 위치, 회전,
+                스케일 보정이 필요할 때만 URL 뒤에 <code>?calibrate=1</code>을 붙여
+                캘리브레이션 모드로 들어가면 됩니다.
               </p>
             </div>
           )}
+        </section>
+
+        <section className="feng-shui-section">
+          <div className="section-heading compact">
+            <div>
+              <span className="section-kicker">풍수지리 분석</span>
+              <h2>3구역 풍수 기운 해석</h2>
+            </div>
+          </div>
+          <p className="section-desc">
+            구역 카드를 탭하면 해당 구역으로 카메라가 이동하고 3D 지도에 색상 구역이 표시됩니다.
+            아래 분석은 <strong>참고용 해석</strong>이며 사실적 판단의 근거로 사용하지 마세요.
+          </p>
+          <FengShuiAnalysisCards
+            activeZoneId={activeZoneId}
+            analyses={fengShuiAnalyses}
+            onZoneSelect={(id) => {
+              startTransition(() => setActiveZoneId(prev => prev === id ? null : id))
+            }}
+            zones={fengShuiZoneConfig.zones}
+          />
         </section>
 
         <section className="split-section">

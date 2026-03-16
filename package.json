@@ -8,9 +8,11 @@
     "dev": "vite",
     "lint": "eslint .",
     "preview": "vite preview",
-    "review:ui": "bash scripts/run-playwright-review.sh"
+    "review:ui": "bash scripts/run-playwright-review.sh",
+    "analyze:fengshui": "tsx scripts/analyze-feng-shui.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "cesium": "^1.139.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
@@ -26,6 +28,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "playwright": "^1.58.2",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.0",

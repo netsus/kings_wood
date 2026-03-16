@@ -5,9 +5,12 @@ import {
   kingsWoodSite,
   type CameraFocusOffsetMeters,
   type CameraPresetName,
+  type FengShuiZone,
+  type FengShuiZoneConfig,
   type OverlayCalibration,
 } from '../data/site'
 import {
+  buildZoneRectangleDegrees,
   metersToLatitudeDegrees,
   metersToLongitudeDegrees,
 } from '../lib/siteCalibration'
@@ -44,14 +47,61 @@ type SceneDiagnosticsPatch = Partial<Omit<SceneDiagnostics, 'camera'>> & {
   camera?: Partial<SceneDiagnostics['camera']>
 }
 
+type OrbitState = {
+  headingRad: number
+  pitchRad: number
+  rangeMeters: number
+}
+
 type KingsWoodSceneProps = {
+  activeZoneId?: FengShuiZone['id'] | null
   calibration: OverlayCalibration
   calibrationMode: boolean
   onRuntimeChange?: (runtime: SceneRuntime) => void
-  showOverlay: boolean
   showLoadingMask: boolean
   viewCommandId: number
   viewPreset: CameraPresetName
+  zoneConfig?: FengShuiZoneConfig | null
+}
+
+const minimumOrbitPitchRad = Cesium.Math.toRadians(-88)
+const maximumOrbitPitchRad = Cesium.Math.toRadians(-20)
+const minimumOrbitRangeMeters = 180
+const maximumOrbitRangeMeters = 2600
+const headingDragFactor = 0.008
+const pitchDragFactor = 0.005
+
+function buildOrbitStateForPreset(preset: CameraPresetName): OrbitState {
+  const presetConfig = kingsWoodSite.cameraPresets[preset]
+
+  return {
+    headingRad: Cesium.Math.toRadians(presetConfig.heading),
+    pitchRad: Cesium.Math.toRadians(presetConfig.pitch),
+    rangeMeters: presetConfig.range,
+  }
+}
+
+function clampOrbitState(orbitState: OrbitState): OrbitState {
+  return {
+    headingRad: Cesium.Math.zeroToTwoPi(orbitState.headingRad),
+    pitchRad: Cesium.Math.clamp(
+      orbitState.pitchRad,
+      minimumOrbitPitchRad,
+      maximumOrbitPitchRad,
+    ),
+    rangeMeters: Cesium.Math.clamp(
+      orbitState.rangeMeters,
+      minimumOrbitRangeMeters,
+      maximumOrbitRangeMeters,
+    ),
+  }
+}
+
+function getPointerDistance(
+  leftPointer: { x: number; y: number },
+  rightPointer: { x: number; y: number },
+) {
+  return Math.hypot(leftPointer.x - rightPointer.x, leftPointer.y - rightPointer.y)
 }
 
 function getErrorMessage(error: unknown) {
@@ -190,7 +240,6 @@ function buildGoogleImageryRectangle(
 function createInitialRuntime(
   hasApiKey: boolean,
   preset: CameraPresetName,
-  overlayVisible: boolean,
 ): SceneRuntime {
   const presetConfig = kingsWoodSite.cameraPresets[preset]
 
@@ -206,7 +255,7 @@ function createInitialRuntime(
       googleSatelliteReady: false,
       hasApiKey,
       lastError: null,
-      overlayVisible,
+      overlayVisible: true,
       request403Count: 0,
       tileFailureCount: 0,
     },
@@ -218,13 +267,14 @@ function createInitialRuntime(
 }
 
 export function KingsWoodScene({
+  activeZoneId,
   calibration,
   calibrationMode,
   onRuntimeChange,
-  showOverlay,
   showLoadingMask,
   viewCommandId,
   viewPreset,
+  zoneConfig,
 }: KingsWoodSceneProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewerRef = useRef<Cesium.Viewer | null>(null)
@@ -232,12 +282,10 @@ export function KingsWoodScene({
     createInitialRuntime(
       Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim()),
       viewPreset,
-      showOverlay,
     ),
   )
   const initialCalibrationRef = useRef(calibration)
   const initialCalibrationModeRef = useRef(calibrationMode)
-  const initialShowOverlayRef = useRef(showOverlay)
   const initialViewPresetRef = useRef(viewPreset)
   const overlayEntityRef = useRef<Cesium.Entity | null>(null)
   const overlayBackdropEntityRef = useRef<Cesium.Entity | null>(null)
@@ -254,7 +302,12 @@ export function KingsWoodScene({
   )
   const tilesetFailureCleanupRef = useRef<(() => void) | null>(null)
   const cameraListenerCleanupRef = useRef<(() => void) | null>(null)
+  const mobileOrbitCleanupRef = useRef<(() => void) | null>(null)
   const cameraSyncTimeoutRef = useRef<number | null>(null)
+  const zoneEntityRefs = useRef<(Cesium.Entity | null)[]>([null, null, null])
+  const orbitStateRef = useRef<OrbitState>(
+    clampOrbitState(buildOrbitStateForPreset(viewPreset)),
+  )
 
   const publishRuntime = useEffectEvent(
     (
@@ -292,16 +345,21 @@ export function KingsWoodScene({
       viewer.camera.positionWC,
       targetRef.current,
     )
+    const orbitState = clampOrbitState({
+      headingRad: viewer.camera.heading,
+      pitchRad: viewer.camera.pitch,
+      rangeMeters,
+    })
+
+    orbitStateRef.current = orbitState
 
     publishRuntime({
       diagnostics: {
         camera: {
-          headingDeg: Number(
-            Cesium.Math.toDegrees(viewer.camera.heading).toFixed(2),
-          ),
-          pitchDeg: Number(Cesium.Math.toDegrees(viewer.camera.pitch).toFixed(2)),
+          headingDeg: Number(Cesium.Math.toDegrees(orbitState.headingRad).toFixed(2)),
+          pitchDeg: Number(Cesium.Math.toDegrees(orbitState.pitchRad).toFixed(2)),
           preset: runtimeRef.current.diagnostics.camera.preset,
-          rangeMeters: Number(rangeMeters.toFixed(2)),
+          rangeMeters: Number(orbitState.rangeMeters.toFixed(2)),
         },
       },
     })
@@ -318,50 +376,217 @@ export function KingsWoodScene({
     }, 120)
   })
 
-  const applyPreset = useEffectEvent(
-    (preset: CameraPresetName, animate: boolean) => {
+  const applyOrbitState = useEffectEvent(
+    (nextOrbitState: OrbitState, animate: boolean, preset: CameraPresetName) => {
       const viewer = viewerRef.current
 
       if (!viewer) {
         return
       }
 
-      const presetConfig = kingsWoodSite.cameraPresets[preset]
-
-      viewer.camera.lookAt(
-        targetRef.current,
-        new Cesium.HeadingPitchRange(
-          Cesium.Math.toRadians(presetConfig.heading),
-          Cesium.Math.toRadians(presetConfig.pitch),
-          presetConfig.range,
-        ),
+      const orbitState = clampOrbitState(nextOrbitState)
+      const offset = new Cesium.HeadingPitchRange(
+        orbitState.headingRad,
+        orbitState.pitchRad,
+        orbitState.rangeMeters,
       )
+
+      orbitStateRef.current = orbitState
 
       if (animate) {
         viewer.camera.flyToBoundingSphere(boundingSphereRef.current, {
+          complete: () => {
+            viewer.camera.lookAt(targetRef.current, offset)
+            viewer.scene.requestRender()
+            queueCameraDiagnostics()
+          },
           duration: 0.85,
-          offset: new Cesium.HeadingPitchRange(
-            Cesium.Math.toRadians(presetConfig.heading),
-            Cesium.Math.toRadians(presetConfig.pitch),
-            presetConfig.range,
-          ),
+          offset,
         })
+      } else {
+        viewer.camera.lookAt(targetRef.current, offset)
+        viewer.scene.requestRender()
       }
 
-      viewer.scene.requestRender()
       publishRuntime({
         diagnostics: {
           camera: {
-            headingDeg: presetConfig.heading,
-            pitchDeg: presetConfig.pitch,
+            headingDeg: Number(Cesium.Math.toDegrees(orbitState.headingRad).toFixed(2)),
+            pitchDeg: Number(Cesium.Math.toDegrees(orbitState.pitchRad).toFixed(2)),
             preset,
-            rangeMeters: presetConfig.range,
+            rangeMeters: Number(orbitState.rangeMeters.toFixed(2)),
           },
         },
       })
       queueCameraDiagnostics()
     },
   )
+
+  const applyPreset = useEffectEvent(
+    (preset: CameraPresetName, animate: boolean) => {
+      applyOrbitState(buildOrbitStateForPreset(preset), animate, preset)
+    },
+  )
+
+  const installMobileOrbitControls = useEffectEvent(() => {
+    const viewer = viewerRef.current
+
+    if (!viewer) {
+      return () => {}
+    }
+
+    const canvas = viewer.scene.canvas as HTMLCanvasElement
+    const controller = viewer.scene.screenSpaceCameraController
+    const activePointers = new Map<number, { x: number; y: number }>()
+    let pinchState: { startDistance: number; startRange: number } | null = null
+
+    controller.enableInputs = false
+    controller.enableRotate = false
+    controller.enableTilt = false
+    controller.enableLook = false
+    controller.enableZoom = false
+    controller.inertiaSpin = 0
+    controller.inertiaZoom = 0
+    controller.inertiaTranslate = 0
+    canvas.style.touchAction = 'none'
+
+    const updateSinglePointerOrbit = (
+      previousPoint: { x: number; y: number },
+      nextPoint: { x: number; y: number },
+    ) => {
+      const deltaX = nextPoint.x - previousPoint.x
+      const deltaY = nextPoint.y - previousPoint.y
+
+      applyOrbitState(
+        {
+          ...orbitStateRef.current,
+          headingRad: orbitStateRef.current.headingRad - deltaX * headingDragFactor,
+          pitchRad: orbitStateRef.current.pitchRad + deltaY * pitchDragFactor,
+        },
+        false,
+        runtimeRef.current.diagnostics.camera.preset,
+      )
+    }
+
+    const updatePinchZoom = () => {
+      const [leftPointer, rightPointer] = [...activePointers.values()]
+
+      if (!leftPointer || !rightPointer) {
+        return
+      }
+
+      const distance = getPointerDistance(leftPointer, rightPointer)
+
+      if (!pinchState || pinchState.startDistance < 12) {
+        pinchState = {
+          startDistance: distance,
+          startRange: orbitStateRef.current.rangeMeters,
+        }
+      }
+
+      const scale = distance / pinchState.startDistance
+
+      if (!Number.isFinite(scale) || scale <= 0) {
+        return
+      }
+
+      applyOrbitState(
+        {
+          ...orbitStateRef.current,
+          rangeMeters: pinchState.startRange / scale,
+        },
+        false,
+        runtimeRef.current.diagnostics.camera.preset,
+      )
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') {
+        return
+      }
+
+      event.preventDefault()
+      canvas.setPointerCapture?.(event.pointerId)
+      activePointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      })
+
+      if (activePointers.size === 2) {
+        const [leftPointer, rightPointer] = [...activePointers.values()]
+
+        pinchState = {
+          startDistance: getPointerDistance(leftPointer, rightPointer),
+          startRange: orbitStateRef.current.rangeMeters,
+        }
+      }
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') {
+        return
+      }
+
+      const previousPoint = activePointers.get(event.pointerId)
+
+      if (!previousPoint) {
+        return
+      }
+
+      event.preventDefault()
+
+      const nextPoint = {
+        x: event.clientX,
+        y: event.clientY,
+      }
+
+      activePointers.set(event.pointerId, nextPoint)
+
+      if (activePointers.size === 1) {
+        pinchState = null
+        updateSinglePointerOrbit(previousPoint, nextPoint)
+        return
+      }
+
+      if (activePointers.size === 2) {
+        updatePinchZoom()
+      }
+    }
+
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') {
+        return
+      }
+
+      activePointers.delete(event.pointerId)
+
+      if (activePointers.size < 2) {
+        pinchState = null
+      }
+
+      queueCameraDiagnostics()
+    }
+
+    canvas.addEventListener('pointerdown', handlePointerDown, { passive: false })
+    canvas.addEventListener('pointermove', handlePointerMove, { passive: false })
+    canvas.addEventListener('pointerup', handlePointerEnd)
+    canvas.addEventListener('pointercancel', handlePointerEnd)
+
+    return () => {
+      activePointers.clear()
+      pinchState = null
+      canvas.removeEventListener('pointerdown', handlePointerDown)
+      canvas.removeEventListener('pointermove', handlePointerMove)
+      canvas.removeEventListener('pointerup', handlePointerEnd)
+      canvas.removeEventListener('pointercancel', handlePointerEnd)
+      canvas.style.touchAction = ''
+      controller.enableInputs = true
+      controller.enableRotate = true
+      controller.enableTilt = true
+      controller.enableLook = true
+      controller.enableZoom = true
+    }
+  })
 
   useEffect(() => {
     if (!containerRef.current || viewerRef.current) {
@@ -370,9 +595,11 @@ export function KingsWoodScene({
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? ''
     const hasApiKey = apiKey.length > 0
-    const prefer3dOnlyBase =
+    const isTouchOrbitMode =
       typeof window !== 'undefined' &&
-      window.matchMedia('(max-width: 820px), (pointer: coarse)').matches &&
+      window.matchMedia('(max-width: 820px), (pointer: coarse)').matches
+    const prefer3dOnlyBase =
+      isTouchOrbitMode &&
       !initialCalibrationModeRef.current
     let isCancelled = false
 
@@ -380,7 +607,6 @@ export function KingsWoodScene({
       createInitialRuntime(
         hasApiKey,
         initialViewPresetRef.current,
-        initialShowOverlayRef.current,
       ),
     )
 
@@ -418,8 +644,11 @@ export function KingsWoodScene({
       viewer.scene.screenSpaceCameraController.enableRotate = true
       viewer.scene.screenSpaceCameraController.enableTilt = true
       viewer.scene.screenSpaceCameraController.enableLook = true
-      viewer.scene.screenSpaceCameraController.minimumZoomDistance = 180
-      viewer.scene.screenSpaceCameraController.maximumZoomDistance = 2600
+      viewer.scene.screenSpaceCameraController.enableZoom = true
+      viewer.scene.screenSpaceCameraController.minimumZoomDistance =
+        minimumOrbitRangeMeters
+      viewer.scene.screenSpaceCameraController.maximumZoomDistance =
+        maximumOrbitRangeMeters
       viewer.scene.camera.percentageChanged = 0.001
 
       if (viewer.scene.skyAtmosphere) {
@@ -428,6 +657,10 @@ export function KingsWoodScene({
 
       ;(viewer.cesiumWidget.creditContainer as HTMLElement).style.pointerEvents =
         'auto'
+
+      if (isTouchOrbitMode) {
+        mobileOrbitCleanupRef.current = installMobileOrbitControls()
+      }
 
       cameraListenerCleanupRef.current = viewer.camera.changed.addEventListener(() => {
         queueCameraDiagnostics()
@@ -688,6 +921,8 @@ export function KingsWoodScene({
       tilesetFailureCleanupRef.current = null
       cameraListenerCleanupRef.current?.()
       cameraListenerCleanupRef.current = null
+      mobileOrbitCleanupRef.current?.()
+      mobileOrbitCleanupRef.current = null
 
       if (viewerRef.current) {
         viewerRef.current.destroy()
@@ -742,14 +977,9 @@ export function KingsWoodScene({
 
     publishRuntime({
       diagnostics: {
-        overlayVisible: showOverlay,
+        overlayVisible: true,
       },
     })
-
-    if (!showOverlay) {
-      applyPreset(viewPreset, false)
-      return
-    }
 
     const overlayRectangle = buildOverlayRectangle(calibration)
     const rotation = Cesium.Math.toRadians(calibration.rotationDeg)
@@ -798,7 +1028,7 @@ export function KingsWoodScene({
 
     applyPreset(viewPreset, false)
     viewer.scene.requestRender()
-  }, [calibration, calibrationMode, showOverlay, viewPreset])
+  }, [calibration, calibrationMode, viewPreset])
 
   useEffect(() => {
     if (!viewerRef.current) {
@@ -807,6 +1037,70 @@ export function KingsWoodScene({
 
     applyPreset(viewPreset, viewCommandId > 0)
   }, [viewCommandId, viewPreset])
+
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+
+    zoneEntityRefs.current.forEach(e => {
+      if (e) viewer.entities.remove(e)
+    })
+    zoneEntityRefs.current = [null, null, null]
+
+    if (!zoneConfig) return
+
+    zoneConfig.zones.forEach((zone, idx) => {
+      const { east, north, south, west } = buildZoneRectangleDegrees(
+        calibration,
+        zone.southFraction,
+        zone.northFraction,
+      )
+      const isActive = zone.id === activeZoneId
+      const color = Cesium.Color.fromCssColorString(zone.color)
+
+      zoneEntityRefs.current[idx] = viewer.entities.add({
+        rectangle: {
+          classificationType: Cesium.ClassificationType.BOTH,
+          coordinates: Cesium.Rectangle.fromDegrees(west, south, east, north),
+          material: color.withAlpha(isActive ? 0.42 : 0.18),
+          outline: true,
+          outlineColor: color.withAlpha(isActive ? 0.9 : 0.5),
+          outlineWidth: isActive ? 3 : 1.5,
+        },
+      })
+    })
+
+    viewer.scene.requestRender()
+  }, [zoneConfig, activeZoneId, calibration])
+
+  useEffect(() => {
+    const viewer = viewerRef.current
+    if (!viewer || !activeZoneId || !zoneConfig) return
+
+    const zone = zoneConfig.zones.find(z => z.id === activeZoneId)
+    if (!zone) return
+
+    const latDelta = metersToLatitudeDegrees(calibration.heightMeters / 2)
+    const heightDeg = metersToLatitudeDegrees(calibration.heightMeters)
+    const midFraction = (zone.southFraction + zone.northFraction) / 2
+    const zoneCenterLat = calibration.centerLat - latDelta + midFraction * heightDeg
+
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(calibration.centerLon, zoneCenterLat, 480),
+      duration: 1.1,
+      orientation: {
+        heading: Cesium.Math.toRadians(24),
+        pitch: Cesium.Math.toRadians(-52),
+        roll: 0,
+      },
+    })
+  }, [
+    activeZoneId,
+    calibration.centerLat,
+    calibration.centerLon,
+    calibration.heightMeters,
+    zoneConfig,
+  ])
 
   return (
     <div className="viewer-shell">
@@ -828,7 +1122,7 @@ export function KingsWoodScene({
           <p>
             {calibrationMode
               ? '도로 축과 공원 블록을 기준으로 위치, 회전, 스케일을 미세 보정한 뒤 새로고침해도 draft를 유지합니다.'
-              : '한 손가락 드래그로 부지를 회전하고, 프리셋 버튼으로 기본·동측·서측·탑뷰를 빠르게 비교할 수 있습니다.'}
+              : '한 손가락 드래그로 회전과 고도 각도를 조절하고, 핀치로 줌, 프리셋과 리셋 버튼으로 구도를 빠르게 되돌릴 수 있습니다.'}
           </p>
         </div>
       </div>

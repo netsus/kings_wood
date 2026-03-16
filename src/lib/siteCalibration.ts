@@ -73,3 +73,21 @@ export function resetOverlayCalibrationDraft() {
 
   window.localStorage.removeItem(overlayCalibrationStorageKey)
 }
+
+export function buildZoneRectangleDegrees(
+  calibration: OverlayCalibration,
+  southFraction: number,
+  northFraction: number,
+): { east: number; north: number; south: number; west: number } {
+  const lonDelta = metersToLongitudeDegrees(calibration.widthMeters / 2, calibration.centerLat)
+  const latDelta = metersToLatitudeDegrees(calibration.heightMeters / 2)
+  const southEdgeLat = calibration.centerLat - latDelta
+  const heightDeg = metersToLatitudeDegrees(calibration.heightMeters)
+
+  return {
+    east: calibration.centerLon + lonDelta,
+    north: southEdgeLat + northFraction * heightDeg,
+    south: southEdgeLat + southFraction * heightDeg,
+    west: calibration.centerLon - lonDelta,
+  }
+}
