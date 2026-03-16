@@ -60,6 +60,7 @@ function App() {
     () => getInitialCalibration(isCalibrationMode),
   )
   const [nudgeStepMeters, setNudgeStepMeters] = useState(1)
+  const [sceneBootMaskActive, setSceneBootMaskActive] = useState(isCalibrationMode)
   const [viewPreset, setViewPreset] = useState<CameraPresetName>('default')
   const [viewCommandId, setViewCommandId] = useState(0)
   const [runtime, setRuntime] = useState<SceneRuntime>({
@@ -90,7 +91,23 @@ function App() {
     saveOverlayCalibrationDraft(overlayCalibration)
   }, [isCalibrationMode, overlayCalibration])
 
+  useEffect(() => {
+    if (!isCalibrationMode) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSceneBootMaskActive(false)
+    }, 1800)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isCalibrationMode])
+
   const activeStatus = statusCopy[runtime.mode]
+  const showSceneLoadingMask =
+    runtime.mode === 'loading' || (isCalibrationMode && sceneBootMaskActive)
   const overlayScale = deriveOverlayScale(
     overlayCalibration,
     kingsWoodSite.overlayCalibration,
@@ -269,6 +286,7 @@ function App() {
               calibrationMode={isCalibrationMode}
               onRuntimeChange={setRuntime}
               showOverlay={showOverlay}
+              showLoadingMask={showSceneLoadingMask}
               viewCommandId={viewCommandId}
               viewPreset={viewPreset}
             />

@@ -3,6 +3,7 @@ import * as Cesium from 'cesium'
 import phase2Overlay from '/phase2-overlay.png'
 import {
   kingsWoodSite,
+  type CameraFocusOffsetMeters,
   type CameraPresetName,
   type OverlayCalibration,
 } from '../data/site'
@@ -48,6 +49,7 @@ type KingsWoodSceneProps = {
   calibrationMode: boolean
   onRuntimeChange?: (runtime: SceneRuntime) => void
   showOverlay: boolean
+  showLoadingMask: boolean
   viewCommandId: number
   viewPreset: CameraPresetName
 }
@@ -137,10 +139,32 @@ function buildTarget(calibration: OverlayCalibration) {
   )
 }
 
-function buildBoundingSphere(calibration: OverlayCalibration) {
+function buildCameraTarget(
+  calibration: OverlayCalibration,
+  cameraFocusOffsetMeters: CameraFocusOffsetMeters,
+) {
+  return Cesium.Cartesian3.fromDegrees(
+    calibration.centerLon +
+      metersToLongitudeDegrees(
+        cameraFocusOffsetMeters.eastMeters,
+        calibration.centerLat,
+      ),
+    calibration.centerLat +
+      metersToLatitudeDegrees(cameraFocusOffsetMeters.northMeters),
+    0,
+  )
+}
+
+function buildBoundingSphere(
+  calibration: OverlayCalibration,
+  cameraFocusOffsetMeters: CameraFocusOffsetMeters,
+) {
   const radius = Math.max(calibration.widthMeters, calibration.heightMeters) * 0.85
 
-  return new Cesium.BoundingSphere(buildTarget(calibration), radius)
+  return new Cesium.BoundingSphere(
+    buildCameraTarget(calibration, cameraFocusOffsetMeters),
+    radius,
+  )
 }
 
 function buildGoogleImageryRectangle(
@@ -198,6 +222,7 @@ export function KingsWoodScene({
   calibrationMode,
   onRuntimeChange,
   showOverlay,
+  showLoadingMask,
   viewCommandId,
   viewPreset,
 }: KingsWoodSceneProps) {
@@ -220,9 +245,12 @@ export function KingsWoodScene({
   const markerEntityRef = useRef<Cesium.Entity | null>(null)
   const tilesetRef = useRef<Cesium.Cesium3DTileset | null>(null)
   const imageryProviderRef = useRef<Cesium.Google2DImageryProvider | null>(null)
-  const targetRef = useRef<Cesium.Cartesian3>(buildTarget(calibration))
+  const overlayTargetRef = useRef<Cesium.Cartesian3>(buildTarget(calibration))
+  const targetRef = useRef<Cesium.Cartesian3>(
+    buildCameraTarget(calibration, kingsWoodSite.cameraFocusOffsetMeters),
+  )
   const boundingSphereRef = useRef<Cesium.BoundingSphere>(
-    buildBoundingSphere(calibration),
+    buildBoundingSphere(calibration, kingsWoodSite.cameraFocusOffsetMeters),
   )
   const tilesetFailureCleanupRef = useRef<(() => void) | null>(null)
   const cameraListenerCleanupRef = useRef<(() => void) | null>(null)
@@ -378,7 +406,12 @@ export function KingsWoodScene({
       viewer.scene.postProcessStages.fxaa.enabled = true
       viewer.scene.globe.depthTestAgainstTerrain = true
       viewer.scene.globe.enableLighting = true
-      viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0e1f19')
+      viewer.scene.backgroundColor = Cesium.Color.fromCssColorString(
+        initialCalibrationModeRef.current ? '#d7cfbe' : '#10211b',
+      )
+      viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString(
+        initialCalibrationModeRef.current ? '#d7cfbe' : '#0e1f19',
+      )
       viewer.scene.fog.enabled = true
       viewer.scene.highDynamicRange = true
       viewer.scene.screenSpaceCameraController.enableTranslate = false
@@ -670,12 +703,19 @@ export function KingsWoodScene({
       return
     }
 
-    targetRef.current = buildTarget(calibration)
-    boundingSphereRef.current = buildBoundingSphere(calibration)
+    overlayTargetRef.current = buildTarget(calibration)
+    targetRef.current = buildCameraTarget(
+      calibration,
+      kingsWoodSite.cameraFocusOffsetMeters,
+    )
+    boundingSphereRef.current = buildBoundingSphere(
+      calibration,
+      kingsWoodSite.cameraFocusOffsetMeters,
+    )
 
     if (markerEntityRef.current) {
       markerEntityRef.current.position = new Cesium.ConstantPositionProperty(
-        targetRef.current,
+        overlayTargetRef.current,
       )
 
       if (markerEntityRef.current.label) {
@@ -771,6 +811,17 @@ export function KingsWoodScene({
   return (
     <div className="viewer-shell">
       <div className="viewer-canvas" ref={containerRef} />
+      {showLoadingMask ? (
+        <div className="viewer-loading-scrim" aria-live="polite">
+          <div className="viewer-loading-card">
+            <strong>Google 3D 지형 불러오는 중</strong>
+            <p>
+              캘리브레이션 모드에서는 처음 1~3초 정도 지도 영역이 어둡게 보일 수
+              있습니다. 타일이 들어오면 자동으로 실제 위성/3D 장면으로 바뀝니다.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <div className="viewer-overlay">
         <div className="viewer-overlay-card">
           <strong>{calibrationMode ? '보정 모드' : '현재 장면'}</strong>

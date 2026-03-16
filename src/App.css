@@ -291,7 +291,9 @@
 }
 
 .scene-frame {
+  isolation: isolate;
   margin-top: 16px;
+  position: relative;
 }
 
 .viewer-shell {
@@ -304,6 +306,7 @@
   min-height: 440px;
   overflow: hidden;
   position: relative;
+  z-index: 0;
 }
 
 .viewer-canvas {
@@ -315,6 +318,7 @@
   inset: auto 12px 12px 12px;
   pointer-events: none;
   position: absolute;
+  z-index: 3;
 }
 
 .viewer-overlay-card {
@@ -336,6 +340,40 @@
   font-size: 0.88rem;
   line-height: 1.55;
   margin: 6px 0 0;
+}
+
+.viewer-loading-scrim {
+  align-items: center;
+  backdrop-filter: blur(10px);
+  background:
+    linear-gradient(180deg, rgba(214, 206, 188, 0.76), rgba(164, 148, 124, 0.56));
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: absolute;
+  z-index: 2;
+}
+
+.viewer-loading-card {
+  background: rgba(22, 35, 28, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(10, 18, 15, 0.18);
+  inline-size: min(100%, 420px);
+  padding: 18px 18px 16px;
+}
+
+.viewer-loading-card strong {
+  color: var(--cream);
+  display: block;
+  font-size: 1rem;
+}
+
+.viewer-loading-card p {
+  color: rgba(243, 239, 227, 0.78);
+  line-height: 1.6;
+  margin: 8px 0 0;
 }
 
 .controls-grid {

@@ -7,6 +7,11 @@ export type OverlayCalibration = {
   widthMeters: number
 }
 
+export type CameraFocusOffsetMeters = {
+  eastMeters: number
+  northMeters: number
+}
+
 export type CameraPresetName = 'default' | 'east' | 'west' | 'top'
 
 export const kingsWoodSite = {
@@ -20,13 +25,17 @@ export const kingsWoodSite = {
     lon: 127.5292708,
   },
   overlayCalibration: {
-    centerLat: 36.361897,
-    centerLon: 127.529327,
-    heightMeters: 309,
+    centerLat: 36.3612502,
+    centerLon: 127.5304202,
+    heightMeters: 485.8,
     opacity: 0.78,
-    rotationDeg: 0,
-    widthMeters: 460,
+    rotationDeg: -1.0,
+    widthMeters: 680.9,
   } satisfies OverlayCalibration,
+  cameraFocusOffsetMeters: {
+    eastMeters: 0,
+    northMeters: 300,
+  } satisfies CameraFocusOffsetMeters,
   cameraPresets: {
     default: {
       description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
