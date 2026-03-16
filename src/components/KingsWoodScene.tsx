@@ -10,7 +10,9 @@ import {
   type OverlayCalibration,
 } from '../data/site'
 import {
-  buildZoneRectangleDegrees,
+  buildZonePolygonLatLon,
+  latitudeDegreesToMeters,
+  longitudeDegreesToMeters,
   metersToLatitudeDegrees,
   metersToLongitudeDegrees,
 } from '../lib/siteCalibration'
@@ -58,6 +60,7 @@ type KingsWoodSceneProps = {
   calibration: OverlayCalibration
   calibrationMode: boolean
   onRuntimeChange?: (runtime: SceneRuntime) => void
+  resetViewCommandId: number
   showLoadingMask: boolean
   viewCommandId: number
   viewPreset: CameraPresetName
@@ -70,6 +73,7 @@ const minimumOrbitRangeMeters = 180
 const maximumOrbitRangeMeters = 2600
 const headingDragFactor = 0.008
 const pitchDragFactor = 0.005
+const defaultCameraFocusOffsetMeters = kingsWoodSite.cameraFocusOffsetMeters
 
 function buildOrbitStateForPreset(preset: CameraPresetName): OrbitState {
   const presetConfig = kingsWoodSite.cameraPresets[preset]
@@ -217,6 +221,41 @@ function buildBoundingSphere(
   )
 }
 
+function buildFocusOffsetFromLatLon(
+  calibration: OverlayCalibration,
+  lat: number,
+  lon: number,
+): CameraFocusOffsetMeters {
+  return {
+    eastMeters: longitudeDegreesToMeters(
+      lon - calibration.centerLon,
+      calibration.centerLat,
+    ),
+    northMeters: latitudeDegreesToMeters(lat - calibration.centerLat),
+  }
+}
+
+function buildZoneFocusOffset(
+  calibration: OverlayCalibration,
+  zone: FengShuiZone,
+) {
+  const latLonPoints = buildZonePolygonLatLon(calibration, zone.polygon)
+
+  if (latLonPoints.length === 0) {
+    return null
+  }
+
+  const centroid = latLonPoints.reduce(
+    (accumulator, point) => ({
+      lat: accumulator.lat + point.lat / latLonPoints.length,
+      lon: accumulator.lon + point.lon / latLonPoints.length,
+    }),
+    { lat: 0, lon: 0 },
+  )
+
+  return buildFocusOffsetFromLatLon(calibration, centroid.lat, centroid.lon)
+}
+
 function buildGoogleImageryRectangle(
   calibration: OverlayCalibration,
   paddingMeters = 900,
@@ -271,6 +310,7 @@ export function KingsWoodScene({
   calibration,
   calibrationMode,
   onRuntimeChange,
+  resetViewCommandId,
   showLoadingMask,
   viewCommandId,
   viewPreset,
@@ -287,18 +327,22 @@ export function KingsWoodScene({
   const initialCalibrationRef = useRef(calibration)
   const initialCalibrationModeRef = useRef(calibrationMode)
   const initialViewPresetRef = useRef(viewPreset)
+  const calibrationRef = useRef(calibration)
   const overlayEntityRef = useRef<Cesium.Entity | null>(null)
   const overlayBackdropEntityRef = useRef<Cesium.Entity | null>(null)
   const outlineEntityRef = useRef<Cesium.Entity | null>(null)
   const markerEntityRef = useRef<Cesium.Entity | null>(null)
   const tilesetRef = useRef<Cesium.Cesium3DTileset | null>(null)
   const imageryProviderRef = useRef<Cesium.Google2DImageryProvider | null>(null)
+  const currentFocusOffsetRef = useRef<CameraFocusOffsetMeters>(
+    defaultCameraFocusOffsetMeters,
+  )
   const overlayTargetRef = useRef<Cesium.Cartesian3>(buildTarget(calibration))
   const targetRef = useRef<Cesium.Cartesian3>(
-    buildCameraTarget(calibration, kingsWoodSite.cameraFocusOffsetMeters),
+    buildCameraTarget(calibration, defaultCameraFocusOffsetMeters),
   )
   const boundingSphereRef = useRef<Cesium.BoundingSphere>(
-    buildBoundingSphere(calibration, kingsWoodSite.cameraFocusOffsetMeters),
+    buildBoundingSphere(calibration, defaultCameraFocusOffsetMeters),
   )
   const tilesetFailureCleanupRef = useRef<(() => void) | null>(null)
   const cameraListenerCleanupRef = useRef<(() => void) | null>(null)
@@ -333,6 +377,25 @@ export function KingsWoodScene({
       onRuntimeChange?.(next)
     },
   )
+
+  useEffect(() => {
+    calibrationRef.current = calibration
+  }, [calibration])
+
+  const setCurrentFocusOffset = useEffectEvent(
+    (nextFocusOffset: CameraFocusOffsetMeters) => {
+      currentFocusOffsetRef.current = nextFocusOffset
+      targetRef.current = buildCameraTarget(calibrationRef.current, nextFocusOffset)
+      boundingSphereRef.current = buildBoundingSphere(
+        calibrationRef.current,
+        nextFocusOffset,
+      )
+    },
+  )
+
+  const resetCurrentFocusOffset = useEffectEvent(() => {
+    setCurrentFocusOffset(defaultCameraFocusOffsetMeters)
+  })
 
   const syncCameraDiagnostics = useEffectEvent(() => {
     const viewer = viewerRef.current
@@ -460,8 +523,8 @@ export function KingsWoodScene({
       applyOrbitState(
         {
           ...orbitStateRef.current,
-          headingRad: orbitStateRef.current.headingRad - deltaX * headingDragFactor,
-          pitchRad: orbitStateRef.current.pitchRad + deltaY * pitchDragFactor,
+          headingRad: orbitStateRef.current.headingRad + deltaX * headingDragFactor,
+          pitchRad: orbitStateRef.current.pitchRad - deltaY * pitchDragFactor,
         },
         false,
         runtimeRef.current.diagnostics.camera.preset,
@@ -939,14 +1002,7 @@ export function KingsWoodScene({
     }
 
     overlayTargetRef.current = buildTarget(calibration)
-    targetRef.current = buildCameraTarget(
-      calibration,
-      kingsWoodSite.cameraFocusOffsetMeters,
-    )
-    boundingSphereRef.current = buildBoundingSphere(
-      calibration,
-      kingsWoodSite.cameraFocusOffsetMeters,
-    )
+    setCurrentFocusOffset(currentFocusOffsetRef.current)
 
     if (markerEntityRef.current) {
       markerEntityRef.current.position = new Cesium.ConstantPositionProperty(
@@ -1026,9 +1082,13 @@ export function KingsWoodScene({
       },
     })
 
-    applyPreset(viewPreset, false)
+    applyOrbitState(
+      orbitStateRef.current,
+      false,
+      runtimeRef.current.diagnostics.camera.preset,
+    )
     viewer.scene.requestRender()
-  }, [calibration, calibrationMode, viewPreset])
+  }, [calibration, calibrationMode])
 
   useEffect(() => {
     if (!viewerRef.current) {
@@ -1037,6 +1097,15 @@ export function KingsWoodScene({
 
     applyPreset(viewPreset, viewCommandId > 0)
   }, [viewCommandId, viewPreset])
+
+  useEffect(() => {
+    if (!viewerRef.current || resetViewCommandId === 0) {
+      return
+    }
+
+    resetCurrentFocusOffset()
+    applyPreset('default', true)
+  }, [resetViewCommandId])
 
   useEffect(() => {
     const viewer = viewerRef.current
@@ -1050,18 +1119,19 @@ export function KingsWoodScene({
     if (!zoneConfig) return
 
     zoneConfig.zones.forEach((zone, idx) => {
-      const { east, north, south, west } = buildZoneRectangleDegrees(
-        calibration,
-        zone.southFraction,
-        zone.northFraction,
+      if (zone.polygon.length < 3) return
+
+      const latLonPoints = buildZonePolygonLatLon(calibration, zone.polygon)
+      const positions = latLonPoints.map(({ lat, lon }) =>
+        Cesium.Cartesian3.fromDegrees(lon, lat),
       )
       const isActive = zone.id === activeZoneId
       const color = Cesium.Color.fromCssColorString(zone.color)
 
       zoneEntityRefs.current[idx] = viewer.entities.add({
-        rectangle: {
+        polygon: {
           classificationType: Cesium.ClassificationType.BOTH,
-          coordinates: Cesium.Rectangle.fromDegrees(west, south, east, north),
+          hierarchy: new Cesium.PolygonHierarchy(positions),
           material: color.withAlpha(isActive ? 0.42 : 0.18),
           outline: true,
           outlineColor: color.withAlpha(isActive ? 0.9 : 0.5),
@@ -1080,25 +1150,22 @@ export function KingsWoodScene({
     const zone = zoneConfig.zones.find(z => z.id === activeZoneId)
     if (!zone) return
 
-    const latDelta = metersToLatitudeDegrees(calibration.heightMeters / 2)
-    const heightDeg = metersToLatitudeDegrees(calibration.heightMeters)
-    const midFraction = (zone.southFraction + zone.northFraction) / 2
-    const zoneCenterLat = calibration.centerLat - latDelta + midFraction * heightDeg
+    const zoneFocusOffset = buildZoneFocusOffset(calibration, zone)
+    if (!zoneFocusOffset) return
 
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(calibration.centerLon, zoneCenterLat, 480),
-      duration: 1.1,
-      orientation: {
-        heading: Cesium.Math.toRadians(24),
-        pitch: Cesium.Math.toRadians(-52),
-        roll: 0,
+    setCurrentFocusOffset(zoneFocusOffset)
+    applyOrbitState(
+      {
+        headingRad: Cesium.Math.toRadians(24),
+        pitchRad: Cesium.Math.toRadians(-52),
+        rangeMeters: 480,
       },
-    })
+      true,
+      runtimeRef.current.diagnostics.camera.preset,
+    )
   }, [
     activeZoneId,
-    calibration.centerLat,
-    calibration.centerLon,
-    calibration.heightMeters,
+    calibration,
     zoneConfig,
   ])
 

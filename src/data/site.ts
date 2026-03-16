@@ -34,7 +34,7 @@ export const kingsWoodSite = {
   } satisfies OverlayCalibration,
   cameraFocusOffsetMeters: {
     eastMeters: 0,
-    northMeters: 300,
+    northMeters: 200,
   } satisfies CameraFocusOffsetMeters,
   cameraPresets: {
     default: {
@@ -107,12 +107,15 @@ export const kingsWoodSite = {
   ],
 } as const
 
+export type FengShuiZonePoint = { x: number; y: number }
+
 export type FengShuiZone = {
   id: 'north' | 'center' | 'south'
   name: string
   color: string
-  southFraction: number
-  northFraction: number
+  // 오버레이 이미지 기준 정규화 좌표 (3점 이상)
+  // x: 0=서쪽 끝, 1=동쪽 끝  |  y: 0=남쪽 끝, 1=북쪽 끝
+  polygon: FengShuiZonePoint[]
 }
 
 export type FengShuiZoneConfig = {
@@ -129,11 +132,15 @@ export type FengShuiAnalysis = {
   isReferenceOnly: true
 }
 
-// 개발자가 이 값을 직접 조정 후 pnpm run analyze:fengshui 실행
+// 개발자가 ?zone-editor=1 에서 직접 그린 뒤 Export 버튼으로 이 값을 업데이트
+// pnpm run analyze:fengshui 로 풍수 분석 재실행
 export const fengShuiZoneConfig: FengShuiZoneConfig = {
   zones: [
-    { id: 'south',  name: '남측 구역', color: '#e8a87c', southFraction: 0.0,  northFraction: 0.33 },
-    { id: 'center', name: '중앙 구역', color: '#85c985', southFraction: 0.33, northFraction: 0.67 },
-    { id: 'north',  name: '북측 구역', color: '#7cbde8', southFraction: 0.67, northFraction: 1.0  },
+    { id: 'south',  name: '남측 구역', color: '#e8a87c',
+      polygon: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 0.33 }, { x: 0, y: 0.33 }] },
+    { id: 'center', name: '중앙 구역', color: '#85c985',
+      polygon: [{ x: 0, y: 0.33 }, { x: 1, y: 0.33 }, { x: 1, y: 0.67 }, { x: 0, y: 0.67 }] },
+    { id: 'north',  name: '북측 구역', color: '#7cbde8',
+      polygon: [{ x: 0, y: 0.67 }, { x: 1, y: 0.67 }, { x: 1, y: 1 }, { x: 0, y: 1 }] },
   ],
 }

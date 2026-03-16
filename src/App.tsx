@@ -65,6 +65,7 @@ function App() {
   const [sceneBootMaskActive, setSceneBootMaskActive] = useState(isCalibrationMode)
   const [viewPreset, setViewPreset] = useState<CameraPresetName>('default')
   const [viewCommandId, setViewCommandId] = useState(0)
+  const [resetViewCommandId, setResetViewCommandId] = useState(0)
   const [activeZoneId, setActiveZoneId] = useState<FengShuiZone['id'] | null>(null)
   const [runtime, setRuntime] = useState<SceneRuntime>({
     diagnostics: {
@@ -155,7 +156,7 @@ function App() {
   const handleResetView = () => {
     startTransition(() => {
       setViewPreset('default')
-      setViewCommandId((current) => current + 1)
+      setResetViewCommandId((current) => current + 1)
     })
   }
 
@@ -272,6 +273,7 @@ function App() {
               calibration={overlayCalibration}
               calibrationMode={isCalibrationMode}
               onRuntimeChange={setRuntime}
+              resetViewCommandId={resetViewCommandId}
               showLoadingMask={showSceneLoadingMask}
               viewCommandId={viewCommandId}
               viewPreset={viewPreset}
