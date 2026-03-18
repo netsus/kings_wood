@@ -176,32 +176,12 @@ function App() {
             {isCalibrationMode ? '캘리브레이션 모드' : '모바일 우선 프로토타입'}
           </span>
         </div>
-        <h1>킹스우드 2차단지를 구글 3D 지형 위에서 맞춰 보는 현장형 웹사이트</h1>
-        <p className="hero-copy">
-          Google satellite를 기본 바닥지도로 쓰고, 가능하면
-          <strong> photorealistic 3D</strong>까지 띄운 뒤
-          <strong>
-            <code>Phase2_Floor_Plan.png</code>
-          </strong>
-          의 2차단지 부분을 반투명 오버레이로 맞춥니다. 정합 기준은
-          메인 진입 도로 축, 상단 곡선 도로, 공원 블록, 하단 생활시설 구역입니다.
-        </p>
+        <h1>킹스우드 2차단지 3D 지형 현장형 웹사이트</h1>
 
         <div className="hero-grid">
           <article className="fact-card">
-            <span className="fact-label">입력 기준 주소</span>
-            <strong>{kingsWoodSite.userAddress}</strong>
-            <p>{kingsWoodSite.addressNote}</p>
-          </article>
-          <article className="fact-card">
-            <span className="fact-label">3D 정렬 anchor</span>
-            <strong>{kingsWoodSite.anchorAddress}</strong>
-            <p>{kingsWoodSite.coordinatesLabel}</p>
-          </article>
-          <article className="fact-card">
             <span className="fact-label">2차단지 핵심 정보</span>
             <strong>{kingsWoodSite.phase2Summary}</strong>
-            <p>{kingsWoodSite.phase2SummaryNote}</p>
           </article>
         </div>
       </header>
@@ -211,14 +191,6 @@ function App() {
           <div className="section-heading">
             <div>
               <span className="section-kicker">3D Viewer</span>
-              <h2>Google 3D 타일 + 2차단지 오버레이 정합</h2>
-            </div>
-            <div
-              className={`status-pill ${runtime.mode}`}
-              data-scene-mode={runtime.mode}
-            >
-              <strong>{activeStatus.label}</strong>
-              <span>{runtime.message}</span>
             </div>
           </div>
 
@@ -229,9 +201,8 @@ function App() {
                 (typeof kingsWoodSite.cameraPresets)[CameraPresetName],
               ][]).map(([preset, presetConfig]) => (
                 <button
-                  className={`preset-button ${
-                    viewPreset === preset ? 'active' : ''
-                  }`}
+                  className={`preset-button ${viewPreset === preset ? 'active' : ''
+                    }`}
                   data-camera-preset={preset}
                   key={preset}
                   onClick={() => handlePresetChange(preset)}
@@ -249,22 +220,6 @@ function App() {
           </div>
 
           <div className="diagnostic-grid">
-            <article className="diagnostic-chip">
-              <span>Google 3D</span>
-              <strong>
-                {runtime.diagnostics.google3dReady ? '준비됨' : '미준비'}
-              </strong>
-            </article>
-            <article className="diagnostic-chip">
-              <span>Satellite</span>
-              <strong>
-                {runtime.diagnostics.googleSatelliteReady ? '준비됨' : '미준비'}
-              </strong>
-            </article>
-            <article className="diagnostic-chip">
-              <span>403 감지</span>
-              <strong>{runtime.diagnostics.request403Count}건</strong>
-            </article>
             <article className="diagnostic-chip">
               <span>현재 카메라</span>
               <strong>
@@ -309,9 +264,8 @@ function App() {
                   <div className="step-row">
                     {[0.5, 1, 2, 5].map((step) => (
                       <button
-                        className={`mini-toggle ${
-                          nudgeStepMeters === step ? 'active' : ''
-                        }`}
+                        className={`mini-toggle ${nudgeStepMeters === step ? 'active' : ''
+                          }`}
                         key={step}
                         onClick={() => setNudgeStepMeters(step)}
                         type="button"

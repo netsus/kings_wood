@@ -34,36 +34,22 @@ export const kingsWoodSite = {
   } satisfies OverlayCalibration,
   cameraFocusOffsetMeters: {
     eastMeters: 0,
-    northMeters: 200,
+    northMeters: 0,
   } satisfies CameraFocusOffsetMeters,
   cameraPresets: {
     default: {
-      description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
-      heading: 28.8,
-      label: '기본',
-      pitch: -46.3,
-      range: 2000,
-    },
-    east: {
-      description: '동측에서 생활시설 블록 방향으로 보는 각도',
-      heading: 108,
-      label: '동측',
-      pitch: -34,
-      range: 1300,
-    },
-    west: {
-      description: '서측에서 공원 블록과 상단 도로를 보는 각도',
-      heading: 298,
-      label: '서측',
-      pitch: -34,
-      range: 1400,
-    },
-    top: {
       description: '배치평면과 도로 축 정합을 확인하는 탑뷰',
       heading: 0,
       label: '탑뷰',
       pitch: -88,
       range: 1100,
+    },
+    east: {
+      description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
+      heading: 110.8,
+      label: '사선뷰',
+      pitch: -41.3,
+      range: 4000,
     },
   } satisfies Record<
     CameraPresetName,

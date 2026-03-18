@@ -151,10 +151,10 @@ async function probeGoogleMapTilesSession(apiKey: string) {
 
   const payload = (await response.json().catch(() => null)) as
     | {
-        error?: {
-          message?: string
-        }
+      error?: {
+        message?: string
       }
+    }
     | null
 
   return {
@@ -195,12 +195,12 @@ function buildCameraTarget(
 ) {
   return Cesium.Cartesian3.fromDegrees(
     calibration.centerLon +
-      metersToLongitudeDegrees(
-        cameraFocusOffsetMeters.eastMeters,
-        calibration.centerLat,
-      ),
+    metersToLongitudeDegrees(
+      cameraFocusOffsetMeters.eastMeters,
+      calibration.centerLat,
+    ),
     calibration.centerLat +
-      metersToLatitudeDegrees(cameraFocusOffsetMeters.northMeters),
+    metersToLatitudeDegrees(cameraFocusOffsetMeters.northMeters),
     0,
   )
 }
@@ -432,7 +432,7 @@ export function KingsWoodScene({
     const viewer = viewerRef.current
 
     if (!viewer) {
-      return () => {}
+      return () => { }
     }
 
     const canvas = viewer.scene.canvas as HTMLCanvasElement
@@ -655,7 +655,7 @@ export function KingsWoodScene({
         viewer.scene.skyAtmosphere.show = true
       }
 
-      ;(viewer.cesiumWidget.creditContainer as HTMLElement).style.pointerEvents =
+      ; (viewer.cesiumWidget.creditContainer as HTMLElement).style.pointerEvents =
         'auto'
 
       if (isTouchOrbitMode) {
@@ -1149,11 +1149,6 @@ export function KingsWoodScene({
       <div className="viewer-overlay">
         <div className="viewer-overlay-card">
           <strong>{calibrationMode ? '보정 모드' : '현재 장면'}</strong>
-          <p>
-            {calibrationMode
-              ? '도로 축과 공원 블록을 기준으로 위치, 회전, 스케일을 미세 보정한 뒤 새로고침해도 draft를 유지합니다.'
-              : '한 손가락 드래그로 회전과 고도 각도를 조절하고, 핀치로 줌, 프리셋과 리셋 버튼으로 구도를 빠르게 되돌릴 수 있습니다.'}
-          </p>
         </div>
       </div>
     </div>
