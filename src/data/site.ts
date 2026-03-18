@@ -12,7 +12,32 @@ export type CameraFocusOffsetMeters = {
   northMeters: number
 }
 
-export type CameraPresetName = 'default' | 'east' | 'west' | 'top'
+export type CameraPresetConfig = {
+  description: string
+  heading: number
+  label: string
+  pitch: number
+  range: number
+}
+
+export const cameraPresets = {
+  default: {
+    description: '배치평면과 도로 축 정합을 확인하는 탑뷰',
+    heading: 0,
+    label: '탑뷰',
+    pitch: -88,
+    range: 1100,
+  },
+  east: {
+    description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
+    heading: 110.8,
+    label: '사선뷰',
+    pitch: -41.3,
+    range: 4000,
+  },
+} satisfies Record<string, CameraPresetConfig>
+
+export type CameraPresetName = keyof typeof cameraPresets
 
 export const kingsWoodSite = {
   userAddress: '충청북도 옥천군 군북면 증약리 1483',
@@ -36,31 +61,7 @@ export const kingsWoodSite = {
     eastMeters: 0,
     northMeters: 0,
   } satisfies CameraFocusOffsetMeters,
-  cameraPresets: {
-    default: {
-      description: '배치평면과 도로 축 정합을 확인하는 탑뷰',
-      heading: 0,
-      label: '탑뷰',
-      pitch: -88,
-      range: 1100,
-    },
-    east: {
-      description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
-      heading: 110.8,
-      label: '사선뷰',
-      pitch: -41.3,
-      range: 4000,
-    },
-  } satisfies Record<
-    CameraPresetName,
-    {
-      description: string
-      heading: number
-      label: string
-      pitch: number
-      range: number
-    }
-  >,
+  cameraPresets,
   calibrationLandmarks: [
     '메인 진입 도로 축',
     '상단 곡선 도로와 막다른길 라인',

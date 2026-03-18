@@ -3,6 +3,13 @@ import { dirname, resolve } from 'node:path'
 import process from 'node:process'
 import { chromium, devices } from 'playwright'
 
+const chromiumLaunchArgs = [
+  '--enable-webgl',
+  '--ignore-gpu-blocklist',
+  '--use-angle=swiftshader',
+  '--enable-unsafe-swiftshader',
+]
+
 function parseArgs(argv) {
   const args = {
     diagnosticsSelector: '.review-diagnostics',
@@ -411,14 +418,36 @@ async function triggerScenarioAction(page, scenario) {
   await page.waitForTimeout(1_100)
 }
 
+async function discoverPresetNames(config, contextOptions) {
+  const browser = await chromium.launch({
+    args: chromiumLaunchArgs,
+    headless: true,
+  })
+  const context = await browser.newContext(contextOptions)
+  const page = await context.newPage()
+
+  await page.goto(config.url, {
+    timeout: 60_000,
+    waitUntil: 'domcontentloaded',
+  })
+  await waitForSettledRuntime(page, config.diagnosticsSelector)
+  await page.waitForTimeout(config.waitMs)
+
+  const presetNames = await page.locator('[data-camera-preset]').evaluateAll((nodes) =>
+    nodes
+      .map((node) => node.getAttribute('data-camera-preset'))
+      .filter((value) => typeof value === 'string' && value.length > 0),
+  )
+
+  await context.close()
+  await browser.close()
+
+  return presetNames
+}
+
 async function reviewScenario(scenario, config) {
   const browser = await chromium.launch({
-    args: [
-      '--enable-webgl',
-      '--ignore-gpu-blocklist',
-      '--use-angle=swiftshader',
-      '--enable-unsafe-swiftshader',
-    ],
+    args: chromiumLaunchArgs,
     headless: true,
   })
   const context = await browser.newContext(scenario.contextOptions)
@@ -612,26 +641,20 @@ async function main() {
     },
   }
 
+  const presetNames = await discoverPresetNames(config, mobileContextOptions)
+
   const scenarios = [
     {
       contextOptions: mobileContextOptions,
       name: 'mobile-default',
     },
-    {
-      contextOptions: mobileContextOptions,
-      name: 'mobile-east',
-      preset: 'east',
-    },
-    {
-      contextOptions: mobileContextOptions,
-      name: 'mobile-west',
-      preset: 'west',
-    },
-    {
-      contextOptions: mobileContextOptions,
-      name: 'mobile-top',
-      preset: 'top',
-    },
+    ...presetNames
+      .filter((preset) => preset !== 'default')
+      .map((preset) => ({
+        contextOptions: mobileContextOptions,
+        name: `mobile-${preset}`,
+        preset,
+      })),
     {
       contextOptions: {
         locale: 'ko-KR',
