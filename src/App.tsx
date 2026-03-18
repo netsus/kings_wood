@@ -1,18 +1,21 @@
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import phase2Plan from '../Phase2_Floor_Plan.png'
 import sitePlan from '../Site_Plan.png'
 import { FengShuiAnalysisCards } from './components/FengShuiAnalysisCards'
 import { KingsWoodScene, type SceneRuntime } from './components/KingsWoodScene'
+import { ZonePolygonEditor } from './components/ZonePolygonEditor'
 import { fengShuiAnalyses } from './data/fengShuiAnalysis'
 import {
   fengShuiZoneConfig,
   kingsWoodSite,
   type CameraPresetName,
   type FengShuiZone,
+  type FengShuiZoneConfig,
   type OverlayCalibration,
 } from './data/site'
 import {
   detectCalibrationMode,
+  detectZoneEditorMode,
   loadOverlayCalibrationDraft,
   metersToLatitudeDegrees,
   metersToLongitudeDegrees,
@@ -58,6 +61,7 @@ function getInitialCalibration(isCalibrationMode: boolean) {
 
 function App() {
   const isCalibrationMode = detectCalibrationMode()
+  const isZoneEditorMode = detectZoneEditorMode()
   const [overlayCalibration, setOverlayCalibration] = useState<OverlayCalibration>(
     () => getInitialCalibration(isCalibrationMode),
   )
@@ -66,6 +70,10 @@ function App() {
   const [viewPreset, setViewPreset] = useState<CameraPresetName>('default')
   const [viewCommandId, setViewCommandId] = useState(0)
   const [activeZoneId, setActiveZoneId] = useState<FengShuiZone['id'] | null>(null)
+  const sceneCardRef = useRef<HTMLElement>(null)
+  const [editorZones, setEditorZones] = useState<FengShuiZoneConfig['zones']>(
+    () => fengShuiZoneConfig.zones,
+  )
   const [runtime, setRuntime] = useState<SceneRuntime>({
     diagnostics: {
       camera: {
@@ -199,7 +207,7 @@ function App() {
       </header>
 
       <main className="content-stack">
-        <section className="scene-card">
+        <section className="scene-card" ref={sceneCardRef}>
           <div className="section-heading">
             <div>
               <span className="section-kicker">3D Viewer</span>
@@ -275,7 +283,7 @@ function App() {
               showLoadingMask={showSceneLoadingMask}
               viewCommandId={viewCommandId}
               viewPreset={viewPreset}
-              zoneConfig={fengShuiZoneConfig}
+              zoneConfig={{ zones: isZoneEditorMode ? editorZones : fengShuiZoneConfig.zones }}
             />
           </div>
 
@@ -409,6 +417,21 @@ function App() {
           )}
         </section>
 
+        {isZoneEditorMode && (
+          <section className="zone-editor-section">
+            <div className="section-heading compact">
+              <div>
+                <span className="section-kicker">Zone Editor</span>
+                <h2>구역 직접 그리기</h2>
+              </div>
+            </div>
+            <ZonePolygonEditor
+              onZonesChange={setEditorZones}
+              zones={editorZones}
+            />
+          </section>
+        )}
+
         <section className="feng-shui-section">
           <div className="section-heading compact">
             <div>
@@ -425,6 +448,7 @@ function App() {
             analyses={fengShuiAnalyses}
             onZoneSelect={(id) => {
               startTransition(() => setActiveZoneId(prev => prev === id ? null : id))
+              sceneCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }}
             zones={fengShuiZoneConfig.zones}
           />

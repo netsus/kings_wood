@@ -6,6 +6,7 @@
 
 .hero-panel,
 .scene-card,
+.zone-editor-section,
 .feng-shui-section,
 .reference-card,
 .insight-card,
@@ -761,4 +762,146 @@
   font-size: 0.78rem;
   font-family: var(--font-mono, monospace);
   margin: 0;
+}
+
+/* ─── Zone Polygon Editor ─────────────────────────────────────── */
+
+.zone-editor-section {
+  padding: 24px 20px 28px;
+}
+
+.zone-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zone-editor-instructions {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(243, 239, 227, 0.05);
+  color: rgba(243, 239, 227, 0.72);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  padding: 12px 16px;
+}
+
+.zone-editor-instructions code {
+  background: rgba(243, 239, 227, 0.1);
+  border-radius: 4px;
+  font-size: 0.82em;
+  padding: 1px 5px;
+}
+
+.zone-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zone-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom-width: 2px;
+  border-radius: 12px 12px 0 0;
+  background: rgba(243, 239, 227, 0.05);
+  color: rgba(243, 239, 227, 0.6);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 8px 16px 6px;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.zone-tab:hover {
+  background: rgba(243, 239, 227, 0.1);
+  color: rgba(243, 239, 227, 0.9);
+}
+
+.zone-tab--active {
+  background: rgba(243, 239, 227, 0.1);
+  color: rgba(243, 239, 227, 0.95);
+  border-bottom-color: currentColor;
+}
+
+.zone-tab-dot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 9px;
+  width: 9px;
+  flex-shrink: 0;
+}
+
+.zone-tab-check {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.zone-canvas-wrapper {
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+  cursor: crosshair;
+}
+
+.zone-plan-img {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.zone-draw-canvas {
+  inset: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.zone-drawing-hint {
+  font-size: 0.84rem;
+  font-weight: 600;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.zone-editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.zone-editor-toolbar-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.export-button {
+  border: 1px solid rgba(159, 228, 196, 0.5);
+  border-radius: 12px;
+  background: rgba(159, 228, 196, 0.12);
+  color: var(--mint);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 9px 18px;
+  transition: background 150ms ease;
+}
+
+.export-button:hover {
+  background: rgba(159, 228, 196, 0.22);
+}
+
+.export-button--copied {
+  border-color: rgba(133, 201, 133, 0.6);
+  background: rgba(133, 201, 133, 0.18);
+  color: #85c985;
 }

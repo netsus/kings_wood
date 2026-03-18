@@ -34,36 +34,36 @@ export const kingsWoodSite = {
   } satisfies OverlayCalibration,
   cameraFocusOffsetMeters: {
     eastMeters: 0,
-    northMeters: 300,
+    northMeters: 200,
   } satisfies CameraFocusOffsetMeters,
   cameraPresets: {
     default: {
       description: '진입 도로와 상단 곡선 도로를 함께 보는 기본 각도',
-      heading: 24,
+      heading: 28.8,
       label: '기본',
-      pitch: -48,
-      range: 980,
+      pitch: -46.3,
+      range: 2000,
     },
     east: {
       description: '동측에서 생활시설 블록 방향으로 보는 각도',
       heading: 108,
       label: '동측',
       pitch: -34,
-      range: 900,
+      range: 1300,
     },
     west: {
       description: '서측에서 공원 블록과 상단 도로를 보는 각도',
       heading: 298,
       label: '서측',
       pitch: -34,
-      range: 980,
+      range: 1400,
     },
     top: {
       description: '배치평면과 도로 축 정합을 확인하는 탑뷰',
       heading: 0,
       label: '탑뷰',
       pitch: -88,
-      range: 780,
+      range: 1100,
     },
   } satisfies Record<
     CameraPresetName,
@@ -107,12 +107,15 @@ export const kingsWoodSite = {
   ],
 } as const
 
+export type FengShuiZonePoint = { x: number; y: number }
+
 export type FengShuiZone = {
   id: 'north' | 'center' | 'south'
   name: string
   color: string
-  southFraction: number
-  northFraction: number
+  // 오버레이 이미지 기준 정규화 좌표 (3점 이상)
+  // x: 0=서쪽 끝, 1=동쪽 끝  |  y: 0=남쪽 끝, 1=북쪽 끝
+  polygon: FengShuiZonePoint[]
 }
 
 export type FengShuiZoneConfig = {
@@ -129,11 +132,12 @@ export type FengShuiAnalysis = {
   isReferenceOnly: true
 }
 
-// 개발자가 이 값을 직접 조정 후 pnpm run analyze:fengshui 실행
+// 개발자가 ?zone-editor=1 에서 직접 그린 뒤 Export 버튼으로 이 값을 업데이트
+// pnpm run analyze:fengshui 로 풍수 분석 재실행
 export const fengShuiZoneConfig: FengShuiZoneConfig = {
   zones: [
-    { id: 'south',  name: '남측 구역', color: '#e8a87c', southFraction: 0.0,  northFraction: 0.33 },
-    { id: 'center', name: '중앙 구역', color: '#85c985', southFraction: 0.33, northFraction: 0.67 },
-    { id: 'north',  name: '북측 구역', color: '#7cbde8', southFraction: 0.67, northFraction: 1.0  },
+    { id: 'south', name: '남측 구역', color: '#e8a87c', polygon: [{ "x": 0.179, "y": 0.644 }, { "x": 0.17, "y": 0.51 }, { "x": 0.164, "y": 0.351 }, { "x": 0.149, "y": 0.314 }, { "x": 0.12, "y": 0.294 }, { "x": 0.136, "y": 0.264 }, { "x": 0.175, "y": 0.244 }, { "x": 0.207, "y": 0.258 }, { "x": 0.347, "y": 0.371 }, { "x": 0.331, "y": 0.403 }, { "x": 0.334, "y": 0.418 }, { "x": 0.363, "y": 0.439 }, { "x": 0.367, "y": 0.468 }, { "x": 0.395, "y": 0.507 }, { "x": 0.397, "y": 0.568 }, { "x": 0.39, "y": 0.592 }, { "x": 0.359, "y": 0.573 }, { "x": 0.342, "y": 0.6 }, { "x": 0.282, "y": 0.729 }] },
+    { id: 'center', name: '중앙 구역', color: '#85c985', polygon: [{ "x": 0.368, "y": 0.677 }, { "x": 0.44, "y": 0.504 }, { "x": 0.381, "y": 0.452 }, { "x": 0.376, "y": 0.359 }, { "x": 0.452, "y": 0.353 }, { "x": 0.686, "y": 0.419 }, { "x": 0.692, "y": 0.476 }, { "x": 0.692, "y": 0.522 }, { "x": 0.454, "y": 0.745 }] },
+    { id: 'north', name: '북측 구역', color: '#7cbde8', polygon: [{ "x": 0.509, "y": 0.787 }, { "x": 0.535, "y": 0.702 }, { "x": 0.782, "y": 0.473 }, { "x": 0.852, "y": 0.474 }, { "x": 0.939, "y": 0.578 }, { "x": 0.939, "y": 0.801 }, { "x": 0.918, "y": 0.863 }, { "x": 0.895, "y": 0.89 }, { "x": 0.869, "y": 0.903 }, { "x": 0.797, "y": 0.905 }] },
   ],
 }

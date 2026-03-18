@@ -1,4 +1,4 @@
-import type { OverlayCalibration } from '../data/site'
+import type { FengShuiZonePoint, OverlayCalibration } from '../data/site'
 
 export const overlayCalibrationStorageKey =
   'kings-wood:phase2-overlay-calibration-v1'
@@ -74,20 +74,38 @@ export function resetOverlayCalibrationDraft() {
   window.localStorage.removeItem(overlayCalibrationStorageKey)
 }
 
-export function buildZoneRectangleDegrees(
+// 오버레이 이미지 분율 좌표를 WGS84 lat/lon 으로 변환 (회전 보정 포함)
+// x: 0=서쪽, 1=동쪽  |  y: 0=남쪽, 1=북쪽
+export function buildZonePolygonLatLon(
   calibration: OverlayCalibration,
-  southFraction: number,
-  northFraction: number,
-): { east: number; north: number; south: number; west: number } {
+  polygon: FengShuiZonePoint[],
+): Array<{ lat: number; lon: number }> {
   const lonDelta = metersToLongitudeDegrees(calibration.widthMeters / 2, calibration.centerLat)
   const latDelta = metersToLatitudeDegrees(calibration.heightMeters / 2)
+  const westEdgeLon = calibration.centerLon - lonDelta
   const southEdgeLat = calibration.centerLat - latDelta
-  const heightDeg = metersToLatitudeDegrees(calibration.heightMeters)
+  const widthDeg = lonDelta * 2
+  const heightDeg = latDelta * 2
 
-  return {
-    east: calibration.centerLon + lonDelta,
-    north: southEdgeLat + northFraction * heightDeg,
-    south: southEdgeLat + southFraction * heightDeg,
-    west: calibration.centerLon - lonDelta,
-  }
+  const θ = (calibration.rotationDeg * Math.PI) / 180
+  const cosθ = Math.cos(θ)
+  const sinθ = Math.sin(θ)
+  const cx = calibration.centerLon
+  const cy = calibration.centerLat
+
+  return polygon.map(({ x, y }) => {
+    const rawLon = westEdgeLon + x * widthDeg
+    const rawLat = southEdgeLat + y * heightDeg
+    const dLon = rawLon - cx
+    const dLat = rawLat - cy
+    return {
+      lat: cy + dLon * sinθ + dLat * cosθ,
+      lon: cx + dLon * cosθ - dLat * sinθ,
+    }
+  })
+}
+
+export function detectZoneEditorMode() {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('zone-editor') === '1'
 }

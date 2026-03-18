@@ -10,7 +10,7 @@ import {
   type OverlayCalibration,
 } from '../data/site'
 import {
-  buildZoneRectangleDegrees,
+  buildZonePolygonLatLon,
   metersToLatitudeDegrees,
   metersToLongitudeDegrees,
 } from '../lib/siteCalibration'
@@ -1050,22 +1050,23 @@ export function KingsWoodScene({
     if (!zoneConfig) return
 
     zoneConfig.zones.forEach((zone, idx) => {
-      const { east, north, south, west } = buildZoneRectangleDegrees(
-        calibration,
-        zone.southFraction,
-        zone.northFraction,
+      if (zone.polygon.length < 3) return
+
+      const latLonPoints = buildZonePolygonLatLon(calibration, zone.polygon)
+      const positions = latLonPoints.map(({ lat, lon }) =>
+        Cesium.Cartesian3.fromDegrees(lon, lat),
       )
       const isActive = zone.id === activeZoneId
       const color = Cesium.Color.fromCssColorString(zone.color)
 
       zoneEntityRefs.current[idx] = viewer.entities.add({
-        rectangle: {
+        polygon: {
           classificationType: Cesium.ClassificationType.BOTH,
-          coordinates: Cesium.Rectangle.fromDegrees(west, south, east, north),
-          material: color.withAlpha(isActive ? 0.42 : 0.18),
+          hierarchy: new Cesium.PolygonHierarchy(positions),
+          material: color.withAlpha(isActive ? 0.72 : 0.05),
           outline: true,
-          outlineColor: color.withAlpha(isActive ? 0.9 : 0.5),
-          outlineWidth: isActive ? 3 : 1.5,
+          outlineColor: color.withAlpha(isActive ? 1.0 : 0.2),
+          outlineWidth: isActive ? 6 : 1,
         },
       })
     })
@@ -1075,30 +1076,59 @@ export function KingsWoodScene({
 
   useEffect(() => {
     const viewer = viewerRef.current
-    if (!viewer || !activeZoneId || !zoneConfig) return
+    if (!viewer || !zoneConfig || !activeZoneId) return
 
     const zone = zoneConfig.zones.find(z => z.id === activeZoneId)
-    if (!zone) return
+    if (!zone || zone.polygon.length < 3) return
+
+    // 폴리곤 중심 계산 (x, y 평균)
+    const midY = zone.polygon.reduce((sum, p) => sum + p.y, 0) / zone.polygon.length
+    const midX = zone.polygon.reduce((sum, p) => sum + p.x, 0) / zone.polygon.length
+    const minY = Math.min(...zone.polygon.map(p => p.y))
+    const maxY = Math.max(...zone.polygon.map(p => p.y))
 
     const latDelta = metersToLatitudeDegrees(calibration.heightMeters / 2)
-    const heightDeg = metersToLatitudeDegrees(calibration.heightMeters)
-    const midFraction = (zone.southFraction + zone.northFraction) / 2
-    const zoneCenterLat = calibration.centerLat - latDelta + midFraction * heightDeg
+    const lonDelta = metersToLongitudeDegrees(calibration.widthMeters / 2, calibration.centerLat)
+    const heightDeg = latDelta * 2
+    const widthDeg = lonDelta * 2
 
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(calibration.centerLon, zoneCenterLat, 480),
-      duration: 1.1,
-      orientation: {
-        heading: Cesium.Math.toRadians(24),
-        pitch: Cesium.Math.toRadians(-52),
-        roll: 0,
-      },
+    const zoneCenterLat = calibration.centerLat - latDelta + midY * heightDeg
+    const zoneCenterLon = calibration.centerLon - lonDelta + midX * widthDeg
+    const zoneHeightMeters = calibration.heightMeters * (maxY - minY)
+    const zoneRadius = Math.max(zoneHeightMeters / 2, 220)
+
+    // targetRef / boundingSphereRef를 구역 중심으로 업데이트
+    // applyOrbitState 내부의 flyToBoundingSphere와 lookAt이 이 ref를 사용한다
+    targetRef.current = Cesium.Cartesian3.fromDegrees(zoneCenterLon, zoneCenterLat, 0)
+    boundingSphereRef.current = new Cesium.BoundingSphere(targetRef.current, zoneRadius)
+
+    // applyOrbitState 사용 → flyToBoundingSphere + lookAt 패턴 (지구전체 버그 없음)
+    const zoneOrbitState = clampOrbitState({
+      headingRad: Cesium.Math.toRadians(24),
+      pitchRad: Cesium.Math.toRadians(-65),
+      rangeMeters: 250,
     })
+    orbitStateRef.current = zoneOrbitState
+    applyOrbitState(
+      zoneOrbitState,
+      true,
+      runtimeRef.current.diagnostics.camera.preset as CameraPresetName,
+    )
+
+    // 구역 해제 시 ref를 원래 사이트 대상으로 복원 (카메라 이동 없음)
+    return () => {
+      targetRef.current = buildCameraTarget(calibration, kingsWoodSite.cameraFocusOffsetMeters)
+      boundingSphereRef.current = buildBoundingSphere(
+        calibration,
+        kingsWoodSite.cameraFocusOffsetMeters,
+      )
+    }
   }, [
     activeZoneId,
     calibration.centerLat,
     calibration.centerLon,
     calibration.heightMeters,
+    calibration.widthMeters,
     zoneConfig,
   ])
 

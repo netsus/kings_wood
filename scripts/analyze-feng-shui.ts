@@ -3,13 +3,13 @@
  * 풍수지리 분석 스크립트
  *
  * 사용법:
- *   ANTHROPIC_API_KEY=sk-... pnpm run analyze:fengshui
+ *   pnpm run analyze:fengshui
  *
- * src/data/site.ts 의 fengShuiZoneConfig 를 읽어 Claude Opus 4.6에게
+ * src/data/site.ts 의 fengShuiZoneConfig 를 읽어 .claude/agents/fengshui-expert.md 서브에이전트에게
  * 각 구역의 풍수지리 분석을 요청하고, 결과를 src/data/fengShuiAnalysis.ts 에 저장합니다.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import { execFileSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -18,30 +18,16 @@ import type { FengShuiAnalysis, FengShuiZone } from '../src/data/site.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const FENG_SHUI_MODEL = 'claude-opus-4-6'
-
-const SYSTEM_PROMPT = `당신은 한국의 풍수지리 전문가입니다.
-주어진 부지 구역의 방위, 지형, 기운 흐름을 다양한 각도(배산임수, 사신사, 방위, 지기, 햇빛)로 분석하여 실용적인 해석을 제공합니다.
-
-중요 원칙:
-- 모든 분석은 참고용 해석이며 사실이 아님을 내용에 자연스럽게 반영합니다.
-- 한국 전통 풍수지리 용어를 적절히 사용하되, 이해하기 쉽게 설명합니다.
-- 장점과 주의사항을 균형 있게 제시합니다.
-
-반드시 JSON 형식으로만 응답하고, 다른 텍스트는 포함하지 마세요:
-{
-  "rating": 1에서 5 사이의 정수,
-  "headline": "풍수 핵심 특성을 담은 한 문장 (20자 이내)",
-  "highlights": ["강점 1 (30자 이내)", "강점 2 (30자 이내)", "강점 3 (30자 이내)"],
-  "cautions": ["주의사항 1 (30자 이내)", "주의사항 2 (30자 이내)"]
-}`
-
 function buildZonePrompt(zone: FengShuiZone): string {
   const directionLabel = { north: '북측', center: '중앙', south: '남측' }[zone.id]
-  const heightPerZone =
-    kingsWoodSite.overlayCalibration.heightMeters * (zone.northFraction - zone.southFraction)
-  const southPct = Math.round(zone.southFraction * 100)
-  const northPct = Math.round(zone.northFraction * 100)
+  const ys = zone.polygon.map(p => p.y)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  const heightPerZone = Math.round(
+    kingsWoodSite.overlayCalibration.heightMeters * (maxY - minY),
+  )
+  const southPct = Math.round(minY * 100)
+  const northPct = Math.round(maxY * 100)
 
   return `부지 정보:
 - 주소: ${kingsWoodSite.userAddress} (킹스우드 2차단지)
@@ -52,37 +38,36 @@ function buildZonePrompt(zone: FengShuiZone): string {
 
 분석 구역: ${zone.name} (${directionLabel})
 - 구역 위치: 전체 부지의 ${southPct}%~${northPct}% 구간 (남→북 기준)
-- 구역 규모: 폭 약 ${kingsWoodSite.overlayCalibration.widthMeters}m × 깊이 약 ${Math.round(heightPerZone)}m
+- 구역 규모: 폭 약 ${kingsWoodSite.overlayCalibration.widthMeters}m × 깊이 약 ${heightPerZone}m
 
 이 구역을 풍수지리 관점에서 분석해 주세요.
 배산임수(산과 물의 관계), 방위별 햇빛과 바람, 지기(땅의 기운), 거주 적합성을 종합적으로 평가합니다.
 JSON 형식으로만 응답하세요.`
 }
 
-async function analyzeZone(
-  client: Anthropic,
-  zone: FengShuiZone,
-  index: number,
-  total: number,
-): Promise<FengShuiAnalysis> {
+function analyzeZone(zone: FengShuiZone, index: number, total: number): FengShuiAnalysis {
   console.log(`[${index + 1}/${total}] ${zone.name} 분석 중...`)
 
-  const message = await client.messages.create({
-    max_tokens: 600,
-    messages: [{ content: buildZonePrompt(zone), role: 'user' }],
-    model: FENG_SHUI_MODEL,
-    system: SYSTEM_PROMPT,
-  })
+  const stdout = execFileSync(
+    'claude',
+    [
+      '-p', buildZonePrompt(zone),
+      '--agent', 'fengshui-expert',
+      '--output-format', 'json',
+      '--no-session-persistence',
+    ],
+    { encoding: 'utf-8' },
+  )
 
-  const rawText = message.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('')
+  // claude -p --output-format json 은 { result: "..." } 래퍼를 반환
+  let rawText = stdout
+  try {
+    const wrapper = JSON.parse(stdout) as { result?: string }
+    if (wrapper.result) rawText = wrapper.result
+  } catch { /* plain text fallback */ }
 
   let parsed: { rating: number; headline: string; highlights: string[]; cautions: string[] }
-
   try {
-    // JSON 블록 안에 있을 수 있는 경우 처리
     const jsonMatch = rawText.match(/\{[\s\S]*\}/)
     parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText)
   } catch {
@@ -121,24 +106,14 @@ export const fengShuiAnalyses: FengShuiAnalysis[] = ${json} satisfies FengShuiAn
 }
 
 async function main() {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    console.error('❌ ANTHROPIC_API_KEY 환경변수가 필요합니다.')
-    console.error('   사용법: ANTHROPIC_API_KEY=sk-... pnpm run analyze:fengshui')
-    process.exit(1)
-  }
-
-  const client = new Anthropic({ apiKey })
   const zones = fengShuiZoneConfig.zones
   const analyses: FengShuiAnalysis[] = []
 
-  console.log(`\n🌿 킹스우드 2차단지 풍수지리 분석 시작 (${FENG_SHUI_MODEL})\n`)
+  console.log(`\n🌿 킹스우드 2차단지 풍수지리 분석 시작 (fengshui-expert 에이전트)\n`)
 
   for (let i = 0; i < zones.length; i++) {
-    const analysis = await analyzeZone(client, zones[i], i, zones.length)
+    const analysis = analyzeZone(zones[i], i, zones.length)
     analyses.push(analysis)
-    // rate limit 방지를 위한 짧은 대기
-    if (i < zones.length - 1) await new Promise(r => setTimeout(r, 800))
   }
 
   const outputPath = path.resolve(__dirname, '../src/data/fengShuiAnalysis.ts')
