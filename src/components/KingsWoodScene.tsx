@@ -460,8 +460,8 @@ export function KingsWoodScene({
       applyOrbitState(
         {
           ...orbitStateRef.current,
-          headingRad: orbitStateRef.current.headingRad - deltaX * headingDragFactor,
-          pitchRad: orbitStateRef.current.pitchRad + deltaY * pitchDragFactor,
+          headingRad: orbitStateRef.current.headingRad + deltaX * headingDragFactor,
+          pitchRad: orbitStateRef.current.pitchRad - deltaY * pitchDragFactor,
         },
         false,
         runtimeRef.current.diagnostics.camera.preset,
